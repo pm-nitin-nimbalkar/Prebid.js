@@ -342,7 +342,7 @@ const eventHandlers = {
     if (args.rejectionReason === REJECTION_REASON.FLOOR_NOT_MET) {
       args.cpm = 0;
       args.status = BID_STATUS.BID_REJECTED;
-      bidResponse(args);
+      eventHandlers['bidResponse'](args);
     }
   },
 
