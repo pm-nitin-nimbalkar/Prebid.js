@@ -171,7 +171,7 @@ function getFeatureLevelDetails(auctionCache){
   }
 }
 
-function getRootLevelDetails(auctionCache){
+function getRootLevelDetails(auctionCache, auctionId){
   const referrer = config.getConfig('pageUrl') || auctionCache.referer || '';
   return {
     pubid: `${publisherId}`,
@@ -192,7 +192,7 @@ function createBidsLoggerPayload(auctionCache, auctionId) {
   return {
     sd: auctionCache.adUnitCodes,
     fd: getFeatureLevelDetails(auctionCache),
-    rd: getRootLevelDetails(auctionCache)
+    rd: getRootLevelDetails(auctionCache,auctionId)
   };
 }
 
@@ -238,7 +238,7 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
   let auctionCache = cache.auctions[auctionId];
   const payload = {
     fd: getFeatureLevelDetails(auctionCache),
-    rd: getRootLevelDetails(auctionCache),
+    rd: getRootLevelDetails(auctionCache, auctionId),
     sd: {
       adapterName,
       adUnitId,
@@ -334,6 +334,8 @@ const eventHandlers = {
     bid.partnerTimeToRespond = latency > (auctionTime + 150) ? (auctionTime + 150) : latency;
     bid.clientLatencyTimeMs = Date.now() - cache.auctions[args.auctionId].timestamp;
     bid.bidResponse = parseBidResponse(args);
+    bid.bidderCode =  args.bidderCode;
+    bid.adapterName = getAdapterNameForAlias(args.adapterCode || bid.bidderCode);
   },
 
   bidRejected: (args)=>{
