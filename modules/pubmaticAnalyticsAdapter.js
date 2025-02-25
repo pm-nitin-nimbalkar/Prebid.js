@@ -163,12 +163,13 @@ function getTgId() {
   return 0;
 }
 
-function getFeatureLevelDetails(auctionCache){
-  return {
-    flr: Object.assign({},auctionCache?.floorData.floorRequestData,{
-      enforcements: auctionCache?.floorData.floorResponseData?.enforcements
-    })
-  }
+function getFeatureLevelDetails(auctionCache) {
+  const enforcements = auctionCache?.floorData.floorResponseData?.enforcements;
+  const flr = Object.assign({}, 
+    auctionCache?.floorData.floorRequestData,
+    enforcements !== undefined ? { enforcements } : {}
+  );
+  return Object.keys(flr).length ? { flr } : {};
 }
 
 function getRootLevelDetails(auctionCache, auctionId){
