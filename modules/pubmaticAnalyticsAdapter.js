@@ -164,7 +164,7 @@ function getTgId() {
 
 function getFeatureLevelDetails(auctionCache) {
   if (!auctionCache?.floorData?.floorRequestData) return {};
-  
+
   const flrData = {
     ...auctionCache.floorData.floorRequestData,
     ...(auctionCache.floorData.floorResponseData?.enforcements && { enforcements: auctionCache.floorData.floorResponseData.enforcements })
@@ -198,17 +198,17 @@ function createBidsLoggerPayload(auctionCache, auctionId) {
   };
 }
 
-function executeBidsLoggerCall(event) {
+function executeBidsLoggerCall(event, highestCpmBids) {
   const { auctionId } = event;
   const auctionCache = cache.auctions[auctionId];
-
   if (!auctionCache || auctionCache.sent) return;
-
   // Fetching slotinfo at event level results to undefined so Running loop over the codes to get the GPT slot name.
   Object.values(auctionCache?.adUnitCodes).forEach(adUnit => {
     Object.values(adUnit?.bids).forEach(bidArray => {
         bidArray.forEach(bid => {
             bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode
+            const winBid =  highestCpmBids.filter(cpmbid =>cpmbid.adId === bid?.adId)[0]?.adId;
+            auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId = auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId ? auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId : winBid;
         });
     });
   });
@@ -360,7 +360,9 @@ const eventHandlers = {
   },
 
   bidderDone: (args)=> {
-    cache.auctions[args.auctionId].bidderDonePendingCount--;
+    if(cache.auctions[args.auctionId]?.bidderDonePendingCount){
+      cache.auctions[args.auctionId].bidderDonePendingCount--;
+    }
     args.bids.forEach(bid => {
       let cachedBid = cache.auctions[bid.auctionId].adUnitCodes[bid.adUnitCode].bids[bid.bidId || bid.originalRequestId || bid.requestId];
       if (typeof bid.serverResponseTimeMs !== 'undefined') {
