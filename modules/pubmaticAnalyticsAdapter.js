@@ -11,6 +11,7 @@ import {getGptSlotInfoForAdUnitCode} from '../libraries/gptUtils/gptUtils.js';
 /// /////////// CONSTANTS //////////////
 const ADAPTER_CODE = 'pubmatic';
 const VENDOR_OPENWRAP = 'openwrap';
+const DISPLAY_MANAGER = 'Prebid.js';
 const SEND_TIMEOUT = 2000;
 const END_POINT_HOST = 'https://t.pubmatic.com/';
 const END_POINT_VERSION = 1;
@@ -32,6 +33,22 @@ const BID_PRECISION = 2;
 const DEFAULT_PUBLISHER_ID = 0;
 const DEFAULT_PROFILE_ID = 0;
 const DEFAULT_PROFILE_VERSION_ID = 0;
+
+// TODO : Remove - Once BM calculation moves to Server Side
+const BROWSER_MAP = [
+  { value: /(firefox)\/([\w\.]+)/i, key: 12 }, // Firefox
+  { value: /\b(?:crios)\/([\w\.]+)/i, key: 1 }, // Chrome for iOS
+  { value: /edg(?:e|ios|a)?\/([\w\.]+)/i, key: 2 }, // Edge
+  { value: /(opera)(?:.+version\/|[\/ ]+)([\w\.]+)/i, key: 3 }, // Opera
+  { value: /(?:ms|\()(ie) ([\w\.]+)/i, key: 4 }, // Internet Explorer
+  { value: /fxios\/([-\w\.]+)/i, key: 5 }, // Firefox for iOS
+  { value: /((?:fban\/fbios|fb_iab\/fb4a)(?!.+fbav)|;fbav\/([\w\.]+);)/i, key: 6 }, // Facebook In-App Browser
+  { value: / wv\).+(chrome)\/([\w\.]+)/i, key: 7 }, // Chrome WebView
+  { value: /droid.+ version\/([\w\.]+)\b.+(?:mobile safari|safari)/i, key: 8 }, // Android Browser
+  { value: /(chrome|chromium|crios)\/v?([\w\.]+)/i, key: 9 }, // Chrome
+  { value: /version\/([\w\.\,]+) .*mobile\/\w+ (safari)/i, key: 10 }, // Safari Mobile
+  { value: /version\/([\w(\.|\,)]+) .*(mobile ?safari|safari)/i, key: 11 }, // Safari
+];
 
 /// /////////// VARIABLES //////////////
 let publisherId = DEFAULT_PUBLISHER_ID; // int: mandatory

@@ -6,43 +6,53 @@
 
 ## Description
 
-This RTD module, provided by PubMatic, sets dynamic floors within Prebid. It enhances floor functionality by supporting custom schemas beyond the existing fixed schema values. By leveraging real-time signals such as device, browser, time of day etc, it enables floor price recommendations based on user value rather than solely on historical data.
+The PubMatic RTD module fetches pricing floor data and updates the Price Floors Module based on user's context in real-time as per Price Floors Modules Floor Data Provider Interface guidelines [Dynamic Floor Data Provider](https://docs.prebid.org/dev-docs/modules/floors.html#floor-data-provider-interface).
 
 ## Usage
 
-Ensure that the following modules are listed when building Prebid: `priceFloors`.
+Step 1: Contact PubMatic to get a publisher ID and create your first profile.
+
+Step 2: Integrate the PubMatic Analytics Adapter (see Prebid Analytics modules) as well as the Price Floors module.
+
+Step 3: Prepare the base Prebid file.
+
 For example:
 
-```shell
-gulp build --modules=priceFloors
-```
-
-To compile the RTD module into your Prebid build:
+To compile the Price Floors, PubMatic RTD module and PubMatic Analytics Adapter into your Prebid build:
 
 ```shell
-gulp build --modules=rtdModule,pubmaticRtdProvider
+gulp build --modules=priceFloors,rtdModule,pubmaticRtdProvider,pubmaticAnalyticsAdapter
 ```
 
-To utilize the PubMatic RTD module, add `realTimeData` with the parameters mentioned below to the Prebid config.
+{: .alert.alert-info :}
+Note: The PubMatic RTD module is dependent on the global real-time data module : `rtdModule`, price floor module : `priceFloors` and PubMatic Analytics Adapter : `pubmaticAnalyticsAdapter`.
+
+Step 4: Set configuration and enable PubMatic RTD Module using pbjs.setConfig.
+
+## Configuration
+
+This module is configured as part of the `realTimeData.dataProviders`.  We recommend setting `auctionDelay` to at least 250 ms and make sure `waitForIt` is set to `true` for the `pubmatic` RTD provider.
 
 ```js
-const AUCTION_DELAY = 500;
+const AUCTION_DELAY = 250;
 pbjs.setConfig({
-	// rest of the config
-	...,
-	realTimeData: {
-		auctionDelay: AUCTION_DELAY,
-		dataProviders: [{
-			name: "pubmatic",
-			waitForIt: true,
-			params: {
-				publisherId: `<publisher_id>`, // please contact PubMatic to get a publisherId for yourself
-				profileId: `<profile_id>`,     // please contact PubMatic to get a profileId for yourself
-			}
-		}]
-	}
-	// rest of the config
-	...,
+    // rest of the config
+    ...,
+    realTimeData: {
+        auctionDelay: AUCTION_DELAY,
+        dataProviders: [
+            {
+                name: "pubmatic",
+                waitForIt: true,
+                params: {
+                    publisherId: `<publisher_id>`, // please contact PubMatic to get a publisherId for yourself
+                    profileId: `<profile_id>`, // please contact PubMatic to get a profileId for yourself
+                },
+            },
+        ],
+    },
+    // rest of the config
+    ...,
 });
 ```
 
@@ -51,7 +61,7 @@ pbjs.setConfig({
 | Name               | Type    | Description                                                    | Default                    |
 | :----------------- | :------ | :------------------------------------------------------------- | :------------------------- |
 | name               | String  | Name of the real-time data module                              | Always `pubmatic`          |
-| waitForIt          | Boolean | Should be `true` if an `auctionDelay` is defined (optional)    | `true`                     |
+| waitForIt          | Boolean | Should be `true` if an `auctionDelay` is defined (mandatory)    | `false`                     |
 | params             | Object  |                                                                |                            |
 | params.publisherId | String  | Publisher ID                                                   |                            |
 | params.profileId   | String  | Profile ID                                                     |                            |
