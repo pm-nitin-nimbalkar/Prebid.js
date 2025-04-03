@@ -218,15 +218,17 @@ function executeBidsLoggerCall(event, highestCpmBids) {
   // Fetching slotinfo at event level results to undefined so Running loop over the codes to get the GPT slot name.
   Object.values(auctionCache?.adUnitCodes).forEach(adUnit => {
     Object.values(adUnit?.bids).forEach(bidArray => {
-      bidArray.forEach(bid => {
-        bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode
-        const winBid = highestCpmBids.filter(cpmbid => cpmbid.adId === bid?.adId)[0]?.adId;
-        auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId = auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId ? auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId : winBid;
-        bid.bidId = bidId;
-        bid.mi = bid?.bidResponse ? bid.bidResponse.mi : (window.matchedimpressions && window.matchedimpressions[bid.bidder]);
-        let adapterName = getAdapterNameForAlias(bid.adapterCode || bid.bidder);
-        bid.bidder = adapterName;
-      });
+      for (let bidId in adUnit?.bids) {
+        adUnit?.bids[bidId].forEach(bid => {
+          bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode;   
+          const winBid = highestCpmBids.filter(cpmbid => cpmbid.adId === bid?.adId)[0]?.adId;
+          auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId = auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId ? auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId : winBid;
+          bid.mi = bid?.bidResponse ? bid.bidResponse.mi : (window.matchedimpressions && window.matchedimpressions[bid.bidder]);
+          const prebidBidId = bid.bidResponse && bid.bidResponse.prebidBidId;
+          bid.bidId = prebidBidId || bid.bidId || bidId;
+          bid.bidderCode = bid.bidderCode || bid.bidder;
+        })
+      }
     });
   });
 
