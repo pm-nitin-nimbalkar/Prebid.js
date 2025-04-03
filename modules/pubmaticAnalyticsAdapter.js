@@ -1,15 +1,17 @@
-import {_each, isArray, isStr, logError, logWarn, pick, generateUUID} from '../src/utils.js';
+import { _each, isArray, isStr, logError, logWarn, pick, generateUUID } from '../src/utils.js';
 import adapter from '../libraries/analyticsAdapter/AnalyticsAdapter.js';
 import adapterManager from '../src/adapterManager.js';
 import { BID_STATUS, EVENTS, STATUS, REJECTION_REASON, REGEX_BROWSERS, BROWSER_MAPPING } from '../src/constants.js';
-import {ajax} from '../src/ajax.js';
-import {config} from '../src/config.js';
-import {getGlobal} from '../src/prebidGlobal.js';
-import {getGptSlotInfoForAdUnitCode} from '../libraries/gptUtils/gptUtils.js';
+import { ajax } from '../src/ajax.js';
+import { config } from '../src/config.js';
+import { getGlobal } from '../src/prebidGlobal.js';
+import { getGptSlotInfoForAdUnitCode } from '../libraries/gptUtils/gptUtils.js';
 
 
 /// /////////// CONSTANTS //////////////
 const ADAPTER_CODE = 'pubmatic';
+
+const DISPLAY_MANAGER = 'Prebid.js';
 const VENDOR_OPENWRAP = 'openwrap';
 const DISPLAY_MANAGER = 'Prebid.js';
 const SEND_TIMEOUT = 2000;
@@ -57,6 +59,7 @@ let profileVersionId = DEFAULT_PROFILE_VERSION_ID; // int: optional
 let s2sBidders = [];
 
 /// /////////// HELPER FUNCTIONS //////////////
+
 function formatSource(src = 'client') {
   return (src === 's2s' ? 'server' : src).toLowerCase();
 }
@@ -67,12 +70,14 @@ function sendAjaxRequest({ endpoint, method, queryParams = '', body = null }) {
 };
 
 function copyRequiredBidDetails(bid) {
+
   return pick(bid, [
     'bidder',
     'bidderCode',
     'adapterCode',
     'bidId',
     'adUnitId', () => bid.adUnitCode,
+    'owAdUnitId', () => getGptSlotInfoForAdUnitCode(bid.adUnitCode)?.gptSlot || bid.adUnitCode,
     'status', () => NO_BID, // default a bid to NO_BID until response is received or bid is timed out
     'finalSource as source',
     'params',
@@ -131,7 +136,7 @@ function parseBidResponse(bid) {
     'originalCurrency',
     'adserverTargeting',
     'dealChannel',
-    'meta',
+    'meta',() => (bid.meta && Object.keys(bid.meta).length > 0 ? bid.meta : undefined),
     'status',
     'error',
     'bidId',
@@ -179,9 +184,15 @@ function getTgId() {
   return 0;
 }
 
+function getIntegrationType() {
+  let s2sConfig = config.getConfig('s2sConfig');
+  return s2sConfig?.bidders?.length ? 'hybrid' : 'web';
+}
+
+
 function getFeatureLevelDetails(auctionCache) {
   if (!auctionCache?.floorData?.floorRequestData) return {};
-  
+
   const flrData = {
     ...auctionCache.floorData.floorRequestData,
     ...(auctionCache.floorData.floorResponseData?.enforcements && { enforcements: auctionCache.floorData.floorResponseData.enforcements })
@@ -190,20 +201,22 @@ function getFeatureLevelDetails(auctionCache) {
   return { flr: flrData };
 }
 
-function getRootLevelDetails(auctionCache, auctionId){
+function getRootLevelDetails(auctionCache, auctionId) {
   const referrer = config.getConfig('pageUrl') || auctionCache.referer || '';
   return {
     pubid: `${publisherId}`,
     iid: `${auctionCache?.wiid || auctionId}`,
-    to: parseInt(`${auctionCache.timeout}`),  
+    to: parseInt(`${auctionCache.timeout}`),
     purl: referrer,
     tst: Math.round(Date.now() / 1000),
     pid: `${profileId}`,
     pdvid: `${profileVersionId}`,
-    pbv: '$prebid.version$' || '-1',
     ortb2: auctionCache.ortb2,
     tgid: getTgId(),
-    s2sls: s2sBidders
+    s2sls: s2sBidders,
+    it: getIntegrationType(),
+    dm: DISPLAY_MANAGER,
+    dmv: '$prebid.version$' || '-1'
   }
 }
 
@@ -211,22 +224,26 @@ function createBidsLoggerPayload(auctionCache, auctionId) {
   return {
     sd: auctionCache.adUnitCodes,
     fd: getFeatureLevelDetails(auctionCache),
-    rd: getRootLevelDetails(auctionCache,auctionId)
+    rd: getRootLevelDetails(auctionCache, auctionId)
   };
 }
 
-function executeBidsLoggerCall(event) {
+function executeBidsLoggerCall(event, highestCpmBids) {
   const { auctionId } = event;
   const auctionCache = cache.auctions[auctionId];
-
   if (!auctionCache || auctionCache.sent) return;
-
   // Fetching slotinfo at event level results to undefined so Running loop over the codes to get the GPT slot name.
   Object.values(auctionCache?.adUnitCodes).forEach(adUnit => {
     Object.values(adUnit?.bids).forEach(bidArray => {
-        bidArray.forEach(bid => {
-            bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode
-        });
+      bidArray.forEach(bid => {
+        bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode
+        const winBid = highestCpmBids.filter(cpmbid => cpmbid.adId === bid?.adId)[0]?.adId;
+        auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId = auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId ? auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId : winBid;
+        bid.bidId = bidId;
+        bid.mi = bid?.bidResponse ? bid.bidResponse.mi : (window.matchedimpressions && window.matchedimpressions[bid.bidder]);
+        let adapterName = getAdapterNameForAlias(bid.adapterCode || bid.bidder);
+        bid.bidder = adapterName;
+      });
     });
   });
 
@@ -274,7 +291,7 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
       owAdUnitId,
     }
   };
-  
+
   const urlParams = new URLSearchParams(new URL(payload.rd.purl).search);
   const queryParams = `v=${END_POINT_VERSION}&psrc=${PAGE_SOURCE}${urlParams.get('pmad') === '1' ? '&debug=1' : ''}`;
 
@@ -290,8 +307,8 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
 /// /////////// ADAPTER EVENT HANDLER FUNCTIONS //////////////
 
 const eventHandlers = {
-  auctionInit: (args)=> {
-    s2sBidders = (function() {
+  auctionInit: (args) => {
+    s2sBidders = (function () {
       let s2sConf = config.getConfig('s2sConfig');
       let s2sBidders = [];
       (s2sConf || []) &&
@@ -311,8 +328,8 @@ const eventHandlers = {
     cache.auctions[args.auctionId] = cacheEntry;
   },
 
-  bidRequested: (args)=> {
-    args.bids.forEach(function(bid) {
+  bidRequested: (args) => {
+    args.bids.forEach(function (bid) {
       if (!cache.auctions[args.auctionId].adUnitCodes.hasOwnProperty(bid.adUnitCode)) {
         cache.auctions[args.auctionId].adUnitCodes[bid.adUnitCode] = {
           bids: {},
@@ -330,7 +347,7 @@ const eventHandlers = {
     })
   },
 
-  bidResponse: (args)=> {
+  bidResponse: (args) => {
     if (!args.requestId) {
       logWarn(LOG_PRE_FIX + 'Got null requestId in bidResponseHandler');
       return;
@@ -343,6 +360,9 @@ const eventHandlers = {
     }
 
     if ((bid.bidder && args.bidderCode && bid.bidder !== args.bidderCode) || (bid.bidder === args.bidderCode && bid.status === SUCCESS)) {
+      if (bid.params) {
+        args.params = bid.params;
+      }
       bid = copyRequiredBidDetails(args);
       cache.auctions[args.auctionId].adUnitCodes[args.adUnitCode].bids[requestId].push(bid);
     } else if (args.originalRequestId) {
@@ -362,11 +382,12 @@ const eventHandlers = {
     bid.partnerTimeToRespond = latency > (auctionTime + 150) ? (auctionTime + 150) : latency;
     bid.clientLatencyTimeMs = Date.now() - cache.auctions[args.auctionId].timestamp;
     bid.bidResponse = parseBidResponse(args);
-    bid.bidderCode =  args.bidderCode;
+    bid.bidderCode = args.bidderCode || bid.bidderCode;
+    bid.bidder = getAdapterNameForAlias(args.adapterCode || bid.bidderCode);
     bid.adapterName = getAdapterNameForAlias(args.adapterCode || bid.bidderCode);
   },
 
-  bidRejected: (args)=>{
+  bidRejected: (args) => {
     // If bid is rejected due to floors value did not met
     // make cpm as 0, status as bidRejected and forward the bid for logging
     if (args.rejectionReason === REJECTION_REASON.FLOOR_NOT_MET) {
@@ -376,8 +397,10 @@ const eventHandlers = {
     }
   },
 
-  bidderDone: (args)=> {
-    cache.auctions[args.auctionId].bidderDonePendingCount--;
+  bidderDone: (args) => {
+    if (cache.auctions[args.auctionId]?.bidderDonePendingCount) {
+      cache.auctions[args.auctionId].bidderDonePendingCount--;
+    }
     args.bids.forEach(bid => {
       let cachedBid = cache.auctions[bid.auctionId].adUnitCodes[bid.adUnitCode].bids[bid.bidId || bid.originalRequestId || bid.requestId];
       if (typeof bid.serverResponseTimeMs !== 'undefined') {
@@ -392,14 +415,14 @@ const eventHandlers = {
     });
   },
 
-  bidWon: (args)=> {
+  bidWon: (args) => {
     let auctionCache = cache.auctions[args.auctionId];
     auctionCache.adUnitCodes[args.adUnitCode].wonBidId = args.originalRequestId || args.requestId;
     auctionCache.adUnitCodes[args.adUnitCode].bidWonAdId = args.adId;
     executeBidWonLoggerCall(args.auctionId, args.adUnitCode);
   },
 
-  auctionEnd: (args)=> {
+  auctionEnd: (args) => {
     // if for the given auction bidderDonePendingCount == 0 then execute logger call sooners
     let highestCpmBids = getGlobal().getHighestCpmBids() || [];
     setTimeout(() => {
@@ -407,12 +430,12 @@ const eventHandlers = {
     }, (cache.auctions[args.auctionId]?.bidderDonePendingCount === 0 ? 500 : SEND_TIMEOUT));
   },
 
-  bidTimeout: (args)=> {
+  bidTimeout: (args) => {
     // db = 1 and t = 1 means bidder did NOT respond with a bid but we got a timeout notification
     // db = 0 and t = 1 means bidder did  respond with a bid but post timeout
     args.forEach(badBid => {
       let auctionCache = cache.auctions[badBid.auctionId];
-      let bid = auctionCache.adUnitCodes[badBid.adUnitCode].bids[ badBid.bidId || badBid.originalRequestId || badBid.requestId ][0];
+      let bid = auctionCache.adUnitCodes[badBid.adUnitCode].bids[badBid.bidId || badBid.originalRequestId || badBid.requestId][0];
       if (bid) {
         bid.status = ERROR;
         bid.error = {
@@ -427,7 +450,7 @@ const eventHandlers = {
 
 /// /////////// ADAPTER DEFINITION //////////////
 
-let baseAdapter = adapter({analyticsType: 'endpoint'});
+let baseAdapter = adapter({ analyticsType: 'endpoint' });
 let pubmaticAdapter = Object.assign({}, baseAdapter, {
 
   enableAnalytics(conf = {}) {
