@@ -597,7 +597,7 @@ describe('pubmatic analytics adapter', function () {
       expect(data.fd.flr.floorProvider).to.equal('pubmatic');
       expect(data.fd.flr.location).to.equal('fetch');
       expect(data.fd.flr.skipRate).to.equal(0);
-      expect(data.fd.flr.skipped).to.equal(false);;
+      expect(data.fd.flr.skipped).to.equal(false); ;
 
       expect(data.sd).to.be.an('object');
       expect(Object.keys(data.sd).length).to.equal(2);
@@ -662,7 +662,7 @@ describe('pubmatic analytics adapter', function () {
       expect(data.fd.flr.floorProvider).to.equal('pubmatic');
       expect(data.fd.flr.location).to.equal('fetch');
       expect(data.fd.flr.skipRate).to.equal(0);
-      expect(data.fd.flr.skipped).to.equal(false);;
+      expect(data.fd.flr.skipped).to.equal(false); ;
     });
 
     // done
@@ -787,7 +787,7 @@ describe('pubmatic analytics adapter', function () {
       expect(data.fd.flr.floorProvider).to.equal('pubmatic');
       expect(data.fd.flr.location).to.equal('fetch');
       expect(data.fd.flr.skipRate).to.equal(0);
-      expect(data.fd.flr.skipped).to.equal(false);;
+      expect(data.fd.flr.skipped).to.equal(false); ;
       expect(data.rd.pbv).to.equal('$prebid.version$' || '-1');
       expect(data.sd).to.be.an('object');
       expect(Object.keys(data.sd).length).to.equal(2);
@@ -907,7 +907,6 @@ describe('pubmatic analytics adapter', function () {
 
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].status).to.equal('error');
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.mediaType).to.equal('banner');
-
     });
 
     
@@ -957,7 +956,6 @@ describe('pubmatic analytics adapter', function () {
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.originalCpm).to.equal(100);
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.originalCurrency).to.equal('JPY');
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.mediaType).to.equal('banner');
-
     });
 
     it('Logger: regexPattern in bid.params', function () {
@@ -1230,7 +1228,6 @@ describe('pubmatic analytics adapter', function () {
 
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.adserverTargeting.hb_pb).to.equal(1.5);
       expect(data.sd['/19968336/header-bid-tag-1'].bids['3bd4ebb1c900e2'][0].bidResponse.dealChannel).to.equal('PMP');
-
     });
 
     
@@ -1363,7 +1360,6 @@ describe('pubmatic analytics adapter', function () {
       firstTracker.split('?')[1].split('&').map(e => e.split('=')).forEach(e => data[e[0]] = e[1]);
       expect(data.v).to.equal('1');
       expect(data.psrc).to.equal('web');
-
     });
 
     it('Logger: best case + win tracker in case of GroupM as alternate bidder', function () {

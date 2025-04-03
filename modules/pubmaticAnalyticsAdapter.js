@@ -1,7 +1,7 @@
-import { _each, isArray, isStr, logError, logWarn, pick, generateUUID } from '../src/utils.js';
+import { isArray, logError, logWarn, pick } from '../src/utils.js';
 import adapter from '../libraries/analyticsAdapter/AnalyticsAdapter.js';
 import adapterManager from '../src/adapterManager.js';
-import { BID_STATUS, EVENTS, STATUS, REJECTION_REASON, REGEX_BROWSERS, BROWSER_MAPPING } from '../src/constants.js';
+import { BID_STATUS, STATUS, REJECTION_REASON } from '../src/constants.js';
 import { ajax } from '../src/ajax.js';
 import { config } from '../src/config.js';
 import { getGlobal } from '../src/prebidGlobal.js';
@@ -69,7 +69,6 @@ function sendAjaxRequest({ endpoint, method, queryParams = '', body = null }) {
 };
 
 function copyRequiredBidDetails(bid) {
-
   return pick(bid, [
     'bidder',
     'bidderCode',
@@ -135,7 +134,7 @@ function parseBidResponse(bid) {
     'originalCurrency',
     'adserverTargeting',
     'dealChannel',
-    'meta',() => (bid.meta && Object.keys(bid.meta).length > 0 ? bid.meta : undefined),
+    'meta', () => (bid.meta && Object.keys(bid.meta).length > 0 ? bid.meta : undefined),
     'status',
     'error',
     'bidId',
@@ -300,7 +299,6 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
     queryParams,
     body: JSON.stringify(payload)
   });
-
 }
 
 /// /////////// ADAPTER EVENT HANDLER FUNCTIONS //////////////
