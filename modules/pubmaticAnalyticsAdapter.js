@@ -13,7 +13,6 @@ const ADAPTER_CODE = 'pubmatic';
 
 const DISPLAY_MANAGER = 'Prebid.js';
 const VENDOR_OPENWRAP = 'openwrap';
-const DISPLAY_MANAGER = 'Prebid.js';
 const SEND_TIMEOUT = 2000;
 const END_POINT_HOST = 'https://t.pubmatic.com/';
 const END_POINT_VERSION = 1;
