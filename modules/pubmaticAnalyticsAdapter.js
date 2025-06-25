@@ -182,6 +182,30 @@ function getTgId() {
   return 0;
 }
 
+function getListOfIdentityPartners() {
+  const namespace = getGlobal();
+  const publisherProvidedEids = namespace.getConfig("ortb2.user.eids") || [];
+  const availableUserIds = namespace.adUnits[0]?.bids[0]?.userId || {};
+  const identityModules = namespace.getConfig('userSync')?.userIds || [];
+  const identityModuleNameMap = identityModules.reduce((mapping, module) => {
+    if (module.storage?.name) {
+      mapping[module.storage.name] = module.name;
+    }
+    return mapping;
+  }, {});
+
+  const userIdPartners = Object.keys(availableUserIds).map(storageName =>
+    identityModuleNameMap[storageName] || storageName
+  );
+
+  const publisherProvidedEidList = publisherProvidedEids.map(eid =>
+    identityModuleNameMap[eid.source] || eid.source
+  );
+
+  const identityPartners = Array.from(new Set([...userIdPartners, ...publisherProvidedEidList]));
+  return identityPartners.length > 0 ? identityPartners : undefined;
+}
+
 
 function getFeatureLevelDetails(auctionCache) {
   if (!auctionCache?.floorData?.floorRequestData) return {};
@@ -191,7 +215,12 @@ function getFeatureLevelDetails(auctionCache) {
     ...(auctionCache.floorData.floorResponseData?.enforcements && { enforcements: auctionCache.floorData.floorResponseData.enforcements })
   };
 
-  return { flr: flrData };
+  return { 
+    flr: flrData,
+    bdv: {
+      lip: getListOfIdentityPartners()
+    }
+  };
 }
 
 function getRootLevelDetails(auctionCache, auctionId) {
