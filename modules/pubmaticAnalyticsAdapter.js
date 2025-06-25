@@ -7,7 +7,6 @@ import { config } from '../src/config.js';
 import { getGlobal } from '../src/prebidGlobal.js';
 import { getGptSlotInfoForAdUnitCode } from '../libraries/gptUtils/gptUtils.js';
 
-
 /// /////////// CONSTANTS ///////////////
 const ADAPTER_CODE = 'pubmatic';
 
@@ -34,22 +33,6 @@ const BID_PRECISION = 2;
 const DEFAULT_PUBLISHER_ID = 0;
 const DEFAULT_PROFILE_ID = 0;
 const DEFAULT_PROFILE_VERSION_ID = 0;
-
-// TODO : Remove - Once BM calculation moves to Server Side
-const BROWSER_MAP = [
-  { value: /(firefox)\/([\w\.]+)/i, key: 12 }, // Firefox
-  { value: /\b(?:crios)\/([\w\.]+)/i, key: 1 }, // Chrome for iOS
-  { value: /edg(?:e|ios|a)?\/([\w\.]+)/i, key: 2 }, // Edge
-  { value: /(opera|opr)(?:.+version\/|[\/ ]+)([\w\.]+)/i, key: 3 }, // Opera
-  { value: /(?:ms|\()(ie) ([\w\.]+)|(?:trident\/[\w\.]+)/i, key: 4 }, // Internet Explorer
-  { value: /fxios\/([-\w\.]+)/i, key: 5 }, // Firefox for iOS
-  { value: /((?:fban\/fbios|fb_iab\/fb4a)(?!.+fbav)|;fbav\/([\w\.]+);)/i, key: 6 }, // Facebook In-App Browser
-  { value: / wv\).+(chrome)\/([\w\.]+)/i, key: 7 }, // Chrome WebView
-  { value: /droid.+ version\/([\w\.]+)\b.+(?:mobile safari|safari)/i, key: 8 }, // Android Browser
-  { value: /(chrome|chromium|crios)\/v?([\w\.]+)/i, key: 9 }, // Chrome
-  { value: /version\/([\w\.\,]+) .*mobile\/\w+ (safari)/i, key: 10 }, // Safari Mobile
-  { value: /version\/([\w(\.|\,)]+) .*(mobile ?safari|safari)/i, key: 11 }, // Safari
-];
 
 /// /////////// VARIABLES //////////////
 let publisherId = DEFAULT_PUBLISHER_ID; // int: mandatory
@@ -206,7 +189,6 @@ function getListOfIdentityPartners() {
   return identityPartners.length > 0 ? identityPartners : undefined;
 }
 
-
 function getFeatureLevelDetails(auctionCache) {
   if (!auctionCache?.floorData?.floorRequestData) return {};
 
@@ -215,9 +197,9 @@ function getFeatureLevelDetails(auctionCache) {
     ...(auctionCache.floorData.floorResponseData?.enforcements && { enforcements: auctionCache.floorData.floorResponseData.enforcements })
   };
 
-  return { 
+  return {
     flr: flrData,
-    bdv: {
+    bvd: {
       lip: getListOfIdentityPartners()
     }
   };
@@ -245,7 +227,7 @@ function executeBidsLoggerCall(event, highestCpmBids) {
   const { auctionId } = event;
   const auctionCache = cache.auctions[auctionId];
   if (!auctionCache || auctionCache.sent) return;
-  //TODO: Change logic to add ctr
+  // TODO: Change logic to add ctr
   const country = event.bidderRequests?.length > 0
     ? event.bidderRequests.find(bidder => bidder?.bidderCode === ADAPTER_CODE)?.ortb2?.user?.ext?.ctr || ''
     : '';
@@ -253,10 +235,10 @@ function executeBidsLoggerCall(event, highestCpmBids) {
   Object.entries(auctionCache?.adUnitCodes || {}).forEach(([adUnitCode, adUnit]) => {
     let origAdUnit = getAdUnit(cache.auctions[auctionId]?.origAdUnits, adUnitCode) || {};
     auctionCache.adUnitCodes[adUnitCode].adUnitId = origAdUnit.owAdUnitId || getGptSlotInfoForAdUnitCode(adUnitCode)?.gptSlot || adUnitCode;
-    
+
     for (let bidId in adUnit?.bids) {
       adUnit?.bids[bidId].forEach(bid => {
-        bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode;   
+        bid['owAdUnitId'] = getGptSlotInfoForAdUnitCode(bid?.adUnit?.adUnitCode)?.gptSlot || bid.adUnit?.adUnitCode;
         const winBid = highestCpmBids.filter(cpmbid => cpmbid.adId === bid?.adId)[0]?.adId;
         auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId = auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId ? auctionCache.adUnitCodes[bid?.adUnitId].bidWonAdId : winBid;
         const prebidBidId = bid.bidResponse && bid.bidResponse.prebidBidId;
@@ -272,7 +254,7 @@ function executeBidsLoggerCall(event, highestCpmBids) {
   const payload = {
     sd: auctionCache.adUnitCodes,
     fd: getFeatureLevelDetails(auctionCache),
-    rd:{ctr: country || '', ...getRootLevelDetails(auctionCache, auctionId)}
+    rd: {ctr: country || '', ...getRootLevelDetails(auctionCache, auctionId)}
   };
   auctionCache.sent = true;
 
@@ -301,7 +283,7 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
   }
 
   const adapterName = getAdapterNameForAlias(winningBid.adapterCode || winningBid.bidder);
-  winningBid.bidId =  winningBidId;
+  winningBid.bidId = winningBidId;
   if (isOWPubmaticBid(adapterName) && isS2SBidder(winningBid.bidder)) {
     return;
   }
@@ -335,10 +317,25 @@ function executeBidWonLoggerCall(auctionId, adUnitId) {
 const eventHandlers = {
   auctionInit: (args) => {
     s2sBidders = (function () {
-      let s2sConf = config.getConfig('s2sConfig');
       let s2sBidders = [];
-      (s2sConf || []) &&
-        isArray(s2sConf) ? s2sConf.map(conf => s2sBidders.push(...conf.bidders)) : s2sConf?.bidders ? s2sBidders.push(...s2sConf.bidders) : [];
+      try {
+        let s2sConf = config.getConfig('s2sConfig');
+    
+        if (s2sConf) {
+          if (isArray(s2sConf)) {
+            s2sConf.forEach(conf => {
+              if (conf && conf.bidders) {
+                s2sBidders.push(...conf.bidders);
+              }
+            });
+          } else if (s2sConf?.bidders) {
+            s2sBidders.push(...s2sConf.bidders);
+          }
+        }
+      } catch (e) {
+        // Optionally log the error for debugging
+        logError('Error processing s2s bidders:', e);
+      }
       return s2sBidders || [];
     }());
     let cacheEntry = pick(args, [
