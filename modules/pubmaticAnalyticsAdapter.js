@@ -199,7 +199,7 @@ function getFeatureLevelDetails(auctionCache) {
 
   return {
     flr: flrData,
-    bvd: {
+    bdv: {
       lip: getListOfIdentityPartners()
     }
   };
