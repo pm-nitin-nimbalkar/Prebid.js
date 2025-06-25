@@ -320,7 +320,7 @@ const eventHandlers = {
       let s2sBidders = [];
       try {
         let s2sConf = config.getConfig('s2sConfig');
-    
+
         if (s2sConf) {
           if (isArray(s2sConf)) {
             s2sConf.forEach(conf => {
