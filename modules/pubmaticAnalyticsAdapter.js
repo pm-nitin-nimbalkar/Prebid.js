@@ -320,20 +320,16 @@ const eventHandlers = {
       let s2sBidders = [];
       try {
         let s2sConf = config.getConfig('s2sConfig');
-
-        if (s2sConf) {
-          if (isArray(s2sConf)) {
-            s2sConf.forEach(conf => {
-              if (conf && conf.bidders) {
-                s2sBidders.push(...conf.bidders);
-              }
-            });
-          } else if (s2sConf?.bidders) {
-            s2sBidders.push(...s2sConf.bidders);
-          }
+        if (isArray(s2sConf)) {
+          s2sConf.forEach(conf => {
+            if (conf?.bidders) {
+              s2sBidders.push(...conf.bidders);
+            }
+          });
+        } else if (s2sConf?.bidders) {
+          s2sBidders.push(...s2sConf.bidders);
         }
       } catch (e) {
-        // Optionally log the error for debugging
         logError('Error processing s2s bidders:', e);
       }
       return s2sBidders || [];
